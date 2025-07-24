@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CardContent, CardHeader } from "@/components/ui/card"
-import { Send, Users, Circle, Minimize2, X } from "lucide-react"
+import { Send, Users, Circle, Minimize2} from "lucide-react"
 import { supabase, type Database } from "@/lib/supabase"
+import { useMobile } from "@/hooks/use-mobile"
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Supporter = Database['public']['Tables']['supporters']['Row']
@@ -22,7 +23,7 @@ export default function ChatScreen() {
   const [userId] = useState(() => `user-${Math.random().toString(36).substr(2, 9)}`)
   const [chatRoomId] = useState(() => `room-${Date.now()}`)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
+  const isMobile = useMobile()
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -173,9 +174,13 @@ export default function ChatScreen() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-96 h-[600px] bg-white border border-gray-200 rounded-lg shadow-xl flex flex-col">
+        <div
+      className={`fixed z-50 bg-white border border-gray-200 shadow-xl flex flex-col ${
+        isMobile ? "inset-0 rounded-none" : "bottom-4 right-4 w-96 h-[600px] rounded-lg"
+      }`}
+    >
       {/* Header */}
-      <CardHeader className="bg-blue-600 text-white rounded-t-lg p-4">
+      <CardHeader className="bg-blue-600 text-white md:rounded-t-lg p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Users className="h-5 w-5" />
@@ -189,9 +194,6 @@ export default function ChatScreen() {
               className="text-white hover:bg-blue-700 p-1"
             >
               <Minimize2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="text-white hover:bg-blue-700 p-1">
-              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -324,7 +326,7 @@ export default function ChatScreen() {
       </CardContent>
 
       {/* Input */}
-      <div className="p-4 border-t">
+      <div className={`border-t ${isMobile ? "p-3" : "p-4"}`}>
         <div className="flex space-x-2">
           <Input
             value={newMessage}

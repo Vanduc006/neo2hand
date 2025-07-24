@@ -4,55 +4,120 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Send } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Send, Tag, User, ShoppingCart, HelpCircle, CheckCircle, X } from "lucide-react"
 import { supabase, type Database } from "@/lib/supabase"
+import SupporterLoginScreen from "./SupporterLoginScreen"
 
 type Message = Database['public']['Tables']['messages']['Row']
+type ChatSession = Database['public']['Tables']['chat_sessions']['Row']
+type Supporter = Database['public']['Tables']['supporters']['Row']
+
+const statusConfig = {
+  'active': { label: 'Dang hoat dong', color: 'bg-green-500', icon: User },
+  'in-order': { label: 'Dang mua', color: 'bg-blue-500', icon: ShoppingCart },
+  'not-buy': { label: 'Khong mua', color: 'bg-red-500', icon: X },
+  'wonder': { label: 'Phan van', color: 'bg-yellow-500', icon: HelpCircle },
+  'resolved': { label: 'Da xu li xong', color: 'bg-purple-500', icon: CheckCircle },
+  'closed': { label: 'Hoan thanh', color: 'bg-gray-500', icon: X }
+}
 
 export default function SupportScreen() {
+  const [currentSupporter, setCurrentSupporter] = useState<Supporter | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState("")
-  const [chatRooms, setChatRooms] = useState<string[]>([])
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [selectedRoom, setSelectedRoom] = useState<string>("")
+  const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null)
+  const [notes, setNotes] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const supporterId = "support-1"
-  const supporterName = "Support Agent"
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  useEffect(() => {
-    loadChatRooms()
-    
-    const cleanup = subscribeToMessages()
-    
-    return cleanup
-  }, [selectedRoom])
-
-  useEffect(() => {
-    if (selectedRoom) {
-      loadMessages(selectedRoom)
+    if (currentSupporter) {
+      scrollToBottom()
     }
-  }, [selectedRoom])
+  }, [messages, currentSupporter])
 
-  const loadChatRooms = async () => {
-    const { data, error } = await supabase
+  useEffect(() => {
+    if (currentSupporter) {
+      loadChatSessions()
+      const cleanup = subscribeToMessages()
+      return cleanup
+    }
+  }, [selectedRoom, currentSupporter])
+
+  useEffect(() => {
+    if (selectedRoom && currentSupporter) {
+      loadMessages(selectedRoom)
+      loadSessionDetails(selectedRoom)
+    }
+  }, [selectedRoom, currentSupporter])
+
+  // Show login screen if no supporter selected
+  if (!currentSupporter) {
+    return <SupporterLoginScreen onSupporterSelect={setCurrentSupporter} />
+  }
+
+  const loadChatSessions = async () => {
+    const { data: messagesData, error: messagesError } = await supabase
       .from('messages')
       .select('chat_room_id')
       .order('created_at', { ascending: false })
 
+    if (messagesError) return
+
+    const uniqueRooms = [...new Set(messagesData.map(msg => msg.chat_room_id))]
+
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .from('chat_sessions')
+      .select('*')
+      .in('chat_room_id', uniqueRooms)
+
+    if (sessionsError) return
+
+    const existingRooms = sessionsData.map(s => s.chat_room_id)
+    const newRooms = uniqueRooms.filter(room => !existingRooms.includes(room))
+
+    if (newRooms.length > 0) {
+      const newSessions = newRooms.map(room => ({
+        chat_room_id: room,
+        status: 'active' as const
+      }))
+
+      await supabase.from('chat_sessions').insert(newSessions)
+      
+      const { data: updatedSessions } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .in('chat_room_id', uniqueRooms)
+        .order('updated_at', { ascending: false })
+
+      setChatSessions(updatedSessions || [])
+    } else {
+      setChatSessions(sessionsData.sort((a, b) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      ))
+    }
+
+    if (uniqueRooms.length > 0 && !selectedRoom) {
+      setSelectedRoom(uniqueRooms[0])
+    }
+  }
+
+  const loadSessionDetails = async (roomId: string) => {
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .select('*')
+      .eq('chat_room_id', roomId)
+      .single()
+
     if (!error && data) {
-      const uniqueRooms = [...new Set(data.map(msg => msg.chat_room_id))]
-      setChatRooms(uniqueRooms)
-      if (uniqueRooms.length > 0 && !selectedRoom) {
-        setSelectedRoom(uniqueRooms[0])
-      }
+      setSelectedSession(data)
+      setNotes(data.notes || "")
     }
   }
 
@@ -80,13 +145,10 @@ export default function SupportScreen() {
         },
         (payload) => {
           const newMessage = payload.new as Message
-          // Always update the chat rooms list
-          loadChatRooms()
+          loadChatSessions()
           
-          // If this message is for the currently selected room, add it to messages
           if (newMessage.chat_room_id === selectedRoom) {
             setMessages(prev => {
-              // Avoid duplicates
               if (prev.find(msg => msg.id === newMessage.id)) {
                 return prev
               }
@@ -108,9 +170,9 @@ export default function SupportScreen() {
     const messageData = {
       content: newMessage.trim(),
       sender_type: 'support' as const,
-      sender_id: supporterId,
-      supporter_name: supporterName,
-      supporter_avatar: "/placeholder.svg",
+      sender_id: currentSupporter.id,
+      supporter_name: currentSupporter.name,
+      supporter_avatar: currentSupporter.avatar,
       chat_room_id: selectedRoom,
     }
 
@@ -123,36 +185,102 @@ export default function SupportScreen() {
     }
   }
 
+  const updateSessionStatus = async (status: ChatSession['status']) => {
+    if (!selectedSession) return
+
+    const { error } = await supabase
+      .from('chat_sessions')
+      .update({ status })
+      .eq('id', selectedSession.id)
+
+    if (!error) {
+      setSelectedSession({ ...selectedSession, status })
+      loadChatSessions()
+    }
+  }
+
+  const updateNotes = async () => {
+    if (!selectedSession) return
+
+    const { error } = await supabase
+      .from('chat_sessions')
+      .update({ notes })
+      .eq('id', selectedSession.id)
+
+    if (!error) {
+      setSelectedSession({ ...selectedSession, notes })
+    }
+  }
+
+  const getStatusBadge = (status: ChatSession['status']) => {
+    const config = statusConfig[status]
+    const Icon = config.icon
+    return (
+      <Badge className={`${config.color} text-white`}>
+        <Icon className="h-3 w-3 mr-1" />
+        {config.label}
+      </Badge>
+    )
+  }
+
+  const handleLogout = () => {
+    setCurrentSupporter(null)
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Support Dashboard</h1>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Support Dashboard</h1>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>
+                  {currentSupporter.name.split(" ").map(n => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-medium">{currentSupporter.name}</span>
+            </div>
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
+        </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Chat Rooms */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          {/* Chat Sessions */}
           <div className="bg-white rounded-lg p-4">
-            <h2 className="font-semibold mb-4">Active Chats</h2>
+            <h2 className="font-semibold mb-4">Chat Sessions</h2>
             <div className="space-y-2">
-              {chatRooms.map((room) => (
+              {chatSessions.map((session) => (
                 <button
-                  key={room}
-                  onClick={() => setSelectedRoom(room)}
-                  className={`w-full text-left p-2 rounded ${
-                    selectedRoom === room ? 'bg-blue-100' : 'hover:bg-gray-100'
+                  key={session.id}
+                  onClick={() => setSelectedRoom(session.chat_room_id)}
+                  className={`w-full text-left p-3 rounded border ${
+                    selectedRoom === session.chat_room_id ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
                   }`}
                 >
-                  {room}
+                  <div className="items-center justify-between mb-1">
+                    {getStatusBadge(session.status)}
+                    <span className="text-sm font-medium truncate">{session.chat_room_id}</span>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(session.updated_at).toLocaleString()}
+                  </div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Chat Interface */}
-          <div className="md:col-span-3 bg-white rounded-lg flex flex-col h-[600px]">
+          <div className="lg:col-span-3 bg-white rounded-lg flex flex-col h-[600px]">
             {selectedRoom ? (
               <>
                 <div className="p-4 border-b">
-                  <h3 className="font-semibold">Chat: {selectedRoom}</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">Chat: {selectedRoom}</h3>
+                    {selectedSession && getStatusBadge(selectedSession.status)}
+                  </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -202,7 +330,62 @@ export default function SupportScreen() {
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center text-gray-500">
-                Select a chat room to start responding
+                Select a chat session to start responding
+              </div>
+            )}
+          </div>
+
+          {/* Session Management */}
+          <div className="bg-white rounded-lg p-4">
+            <h2 className="font-semibold mb-4 flex items-center">
+              <Tag className="h-4 w-4 mr-2" />
+              Session Management
+            </h2>
+            
+            {selectedSession ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Status</label>
+                  <div className="space-y-2">
+                    {Object.entries(statusConfig).map(([status, config]) => {
+                      const Icon = config.icon
+                      return (
+                        <button
+                          key={status}
+                          onClick={() => updateSessionStatus(status as ChatSession['status'])}
+                          className={`w-full flex items-center p-2 rounded text-sm ${
+                            selectedSession.status === status
+                              ? `${config.color} text-white`
+                              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                          }`}
+                        >
+                          <Icon className="h-4 w-4 mr-2" />
+                          {config.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Notes</label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    onBlur={updateNotes}
+                    placeholder="Add notes about this session..."
+                    className="w-full p-2 border rounded-md text-sm h-24 resize-none"
+                  />
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  <div>Created: {new Date(selectedSession.created_at).toLocaleString()}</div>
+                  <div>Updated: {new Date(selectedSession.updated_at).toLocaleString()}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-500 text-sm">
+                Select a session to manage its status and add notes
               </div>
             )}
           </div>

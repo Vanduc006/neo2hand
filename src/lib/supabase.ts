@@ -39,6 +39,35 @@ export type Database = {
           created_at: string
         }
       }
+      chat_sessions: {
+        Row: {
+          id: string
+          chat_room_id: string
+          status: 'active' | 'in-order' | 'not-buy' | 'wonder' | 'resolved' | 'closed'
+          assigned_supporter_id?: string
+          customer_info?: any
+          notes?: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          chat_room_id: string
+          status?: 'active' | 'in-order' | 'not-buy' | 'wonder' | 'resolved' | 'closed'
+          assigned_supporter_id?: string
+          customer_info?: any
+          notes?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          status?: 'active' | 'in-order' | 'not-buy' | 'wonder' | 'resolved' | 'closed'
+          assigned_supporter_id?: string
+          customer_info?: any
+          notes?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }

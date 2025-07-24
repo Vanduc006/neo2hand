@@ -187,14 +187,7 @@ export default function ChatScreen() {
   if (isMinimized) {
     return (
       <div className="fixed bottom-4 right-4 z-50">
-        <a href="https://zalo.me/931075686">
-          <Button
-          // onClick={() => setIsMinimized(false)}
-          className="cursor-pointer mx-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg"
-        >
-          <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/01/Logo-Zalo-App-Rec.png" alt="OpenZalo" className="w-5 h-5 rounded-md"  />
-        </Button>
-        </a>
+        
 
         <Button
           onClick={() => setIsMinimized(false)}

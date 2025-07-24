@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-// import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Circle, User } from "lucide-react"
+import { Circle, User, Clock, RefreshCw } from "lucide-react"
 import { supabase, type Database } from "@/lib/supabase"
+import { supporterStorage } from "@/lib/supporter-storage"
 
 type Supporter = Database['public']['Tables']['supporters']['Row']
 
@@ -16,10 +16,19 @@ interface SupporterLoginScreenProps {
 export default function SupporterLoginScreen({ onSupporterSelect }: SupporterLoginScreenProps) {
   const [supporters, setSupporters] = useState<Supporter[]>([])
   const [loading, setLoading] = useState(true)
+  const [lastSession, setLastSession] = useState<string>("")
 
   useEffect(() => {
     loadSupporters()
+    checkLastSession()
   }, [])
+
+  const checkLastSession = () => {
+    const session = supporterStorage.loadSupporterFromLocalStorage()
+    if (session && !supporterStorage.isSessionExpired(session)) {
+      setLastSession(`Last login: ${new Date(session.loginTime).toLocaleString()}`)
+    }
+  }
 
   const loadSupporters = async () => {
     const { data, error } = await supabase
@@ -43,30 +52,18 @@ export default function SupporterLoginScreen({ onSupporterSelect }: SupporterLog
       .eq('id', supporter.id)
 
     if (!error) {
-      onSupporterSelect({ ...supporter, status: 'online' })
+      const updatedSupporter = { ...supporter, status: 'online' as const }
+      
+      // Save to storage
+      await supporterStorage.saveSupporter(updatedSupporter)
+      
+      onSupporterSelect(updatedSupporter)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "online":
-        return "text-green-500"
-      case "busy":
-        return "text-yellow-500"
-      case "away":
-        return "text-gray-400"
-      default:
-        return "text-gray-400"
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      online: "bg-green-500",
-      busy: "bg-yellow-500", 
-      away: "bg-gray-500"
-    }
-    return colors[status as keyof typeof colors] || "bg-gray-500"
+  const clearStoredSession = async () => {
+    await supporterStorage.clearSupporter()
+    setLastSession("")
   }
 
   if (loading) {
@@ -86,7 +83,22 @@ export default function SupporterLoginScreen({ onSupporterSelect }: SupporterLog
         <div className="text-center mb-8">
           <User className="h-12 w-12 text-blue-600 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Support Dashboard</h1>
-          <p className="text-gray-600">Select your profile to start supporting customers</p>
+          <p className="text-gray-600">Ban la ai ?</p>
+          
+          {lastSession && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-center text-sm text-blue-700">
+                <Clock className="h-4 w-4 mr-2" />
+                {lastSession}
+              </div>
+              <button
+                onClick={clearStoredSession}
+                className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                Clear session data
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -104,14 +116,20 @@ export default function SupporterLoginScreen({ onSupporterSelect }: SupporterLog
                   </AvatarFallback>
                 </Avatar>
                 <Circle
-                  className={`absolute -bottom-1 -right-1 h-4 w-4 fill-current ${getStatusColor(supporter.status)}`}
+                  className={`absolute -bottom-1 -right-1 h-4 w-4 fill-current ${
+                    supporter.status === 'online' ? 'text-green-500' :
+                    supporter.status === 'busy' ? 'text-yellow-500' : 'text-gray-400'
+                  }`}
                 />
               </div>
               
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">{supporter.name}</h3>
                 <div className="flex items-center mt-1">
-                  <Badge className={`${getStatusBadge(supporter.status)} text-white text-xs`}>
+                  <Badge className={`${
+                    supporter.status === 'online' ? 'bg-green-500' :
+                    supporter.status === 'busy' ? 'bg-yellow-500' : 'bg-gray-500'
+                  } text-white text-xs`}>
                     {supporter.status}
                   </Badge>
                 </div>
@@ -120,9 +138,20 @@ export default function SupporterLoginScreen({ onSupporterSelect }: SupporterLog
           ))}
         </div>
 
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Your status will be automatically set to "online" when you select your profile</p>
+        <div className="mt-8 text-center">
+          <button
+            onClick={loadSupporters}
+            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh supporter list
+          </button>
         </div>
+
+        {/* <div className="mt-6 text-center text-sm text-gray-500">
+          <p>💾 Your session will be automatically saved for quick access</p>
+          <p className="mt-1">Sessions expire after 8 hours of inactivity</p>
+        </div> */}
       </div>
     </div>
   )

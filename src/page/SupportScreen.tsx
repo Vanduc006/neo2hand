@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Send, Tag, User, ShoppingCart, HelpCircle, CheckCircle, X } from "lucide-react"
+import { Send, Tag, User, ShoppingCart, HelpCircle, CheckCircle, X, LogOut, Clock } from "lucide-react"
 import { supabase, type Database } from "@/lib/supabase"
+import { supporterStorage } from "@/lib/supporter-storage"
+import { useSupporterStatus } from "@/hooks/use-supporter-status"
 import SupporterLoginScreen from "./SupporterLoginScreen"
 
 type Message = Database['public']['Tables']['messages']['Row']
@@ -30,10 +32,85 @@ export default function SupportScreen() {
   const [selectedRoom, setSelectedRoom] = useState<string>("")
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null)
   const [notes, setNotes] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [lastLoginTime, setLastLoginTime] = useState<string>("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [unreadSessions, setUnreadSessions] = useState<Set<string>>(new Set())
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, string>>({})
   console.log(lastMessageTimes)
+  // Use supporter status hook
+  useSupporterStatus(currentSupporter)
+
+  // Load supporter from storage on component mount
+  useEffect(() => {
+    const loadStoredSupporter = async () => {
+      try {
+        setIsLoading(true)
+        const storedSupporter = await supporterStorage.getCurrentSupporter()
+        
+        if (storedSupporter) {
+          setCurrentSupporter(storedSupporter)
+          
+          // Get session info for display
+          const session = supporterStorage.loadSupporterFromLocalStorage()
+          if (session) {
+            setLastLoginTime(session.loginTime)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading stored supporter:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadStoredSupporter()
+  }, [])
+
+  // Update activity on user interactions
+  useEffect(() => {
+    if (!currentSupporter) return
+
+    const updateActivity = () => {
+      supporterStorage.updateActivity()
+    }
+
+    // Listen for user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+    events.forEach(event => {
+      document.addEventListener(event, updateActivity, true)
+    })
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, updateActivity, true)
+      })
+    }
+  }, [currentSupporter])
+
+  const handleSupporterSelect = async (supporter: Supporter) => {
+    setCurrentSupporter(supporter)
+    setLastLoginTime(new Date().toISOString())
+    
+    // Save to storage
+    await supporterStorage.saveSupporter(supporter)
+  }
+
+  const handleLogout = async () => {
+    if (currentSupporter) {
+      // Update supporter status to away in database
+      await supabase
+        .from('supporters')
+        .update({ status: 'away' })
+        .eq('id', currentSupporter.id)
+    }
+    
+    // Mark session as inactive and clear storage
+    await supporterStorage.markInactive()
+    setCurrentSupporter(null)
+    setLastLoginTime("")
+  }
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -59,9 +136,21 @@ export default function SupportScreen() {
     }
   }, [selectedRoom, currentSupporter])
 
+  // Show loading screen while checking for stored supporter
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading support dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   // Show login screen if no supporter selected
   if (!currentSupporter) {
-    return <SupporterLoginScreen onSupporterSelect={setCurrentSupporter} />
+    return <SupporterLoginScreen onSupporterSelect={handleSupporterSelect} />
   }
 
   const loadChatSessions = async () => {
@@ -265,10 +354,6 @@ export default function SupportScreen() {
     )
   }
 
-  const handleLogout = () => {
-    setCurrentSupporter(null)
-  }
-
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-7xl mx-auto">
@@ -281,9 +366,24 @@ export default function SupportScreen() {
                   {currentSupporter.name.split(" ").map(n => n[0]).join("")}
                 </AvatarFallback>
               </Avatar>
-              <span className="font-medium">{currentSupporter.name}</span>
+              <div className="flex flex-col">
+                <span className="font-medium">{currentSupporter.name}</span>
+                {lastLoginTime && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Logged in: {new Date(lastLoginTime).toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
             </div>
+            <Badge className={`${
+              currentSupporter.status === 'online' ? 'bg-green-500' :
+              currentSupporter.status === 'busy' ? 'bg-yellow-500' : 'bg-gray-500'
+            } text-white`}>
+              {currentSupporter.status}
+            </Badge>
             <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
           </div>

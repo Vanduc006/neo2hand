@@ -31,6 +31,8 @@ export default function SupportScreen() {
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null)
   const [notes, setNotes] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [unreadSessions, setUnreadSessions] = useState<Set<string>>(new Set())
+  const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, string>>({})
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -63,14 +65,24 @@ export default function SupportScreen() {
   }
 
   const loadChatSessions = async () => {
+    // Get all messages with their room IDs and timestamps
     const { data: messagesData, error: messagesError } = await supabase
       .from('messages')
-      .select('chat_room_id')
+      .select('chat_room_id, created_at')
       .order('created_at', { ascending: false })
 
     if (messagesError) return
 
-    const uniqueRooms = [...new Set(messagesData.map(msg => msg.chat_room_id))]
+    // Get unique rooms and their latest message times
+    const roomLastMessages: Record<string, string> = {}
+    messagesData.forEach(msg => {
+      if (!roomLastMessages[msg.chat_room_id]) {
+        roomLastMessages[msg.chat_room_id] = msg.created_at
+      }
+    })
+
+    setLastMessageTimes(roomLastMessages)
+    const uniqueRooms = Object.keys(roomLastMessages)
 
     const { data: sessionsData, error: sessionsError } = await supabase
       .from('chat_sessions')
@@ -94,13 +106,43 @@ export default function SupportScreen() {
         .from('chat_sessions')
         .select('*')
         .in('chat_room_id', uniqueRooms)
-        .order('updated_at', { ascending: false })
 
-      setChatSessions(updatedSessions || [])
+      if (updatedSessions) {
+        const sortedSessions = updatedSessions.sort((a, b) => {
+          // Unread sessions first
+          const aHasUnread = unreadSessions.has(a.chat_room_id)
+          const bHasUnread = unreadSessions.has(b.chat_room_id)
+          
+          if (aHasUnread && !bHasUnread) return -1
+          if (!aHasUnread && bHasUnread) return 1
+          
+          // Then sort by latest message time
+          const aTime = roomLastMessages[a.chat_room_id] || a.updated_at
+          const bTime = roomLastMessages[b.chat_room_id] || b.updated_at
+          
+          return new Date(bTime).getTime() - new Date(aTime).getTime()
+        })
+        
+        setChatSessions(sortedSessions)
+      }
     } else {
-      setChatSessions(sessionsData.sort((a, b) => 
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      ))
+      // Sort existing sessions
+      const sortedSessions = sessionsData.sort((a, b) => {
+        // Unread sessions first
+        const aHasUnread = unreadSessions.has(a.chat_room_id)
+        const bHasUnread = unreadSessions.has(b.chat_room_id)
+        
+        if (aHasUnread && !bHasUnread) return -1
+        if (!aHasUnread && bHasUnread) return 1
+        
+        // Then sort by latest message time
+        const aTime = roomLastMessages[a.chat_room_id] || a.updated_at
+        const bTime = roomLastMessages[b.chat_room_id] || b.updated_at
+        
+        return new Date(bTime).getTime() - new Date(aTime).getTime()
+      })
+      
+      setChatSessions(sortedSessions)
     }
 
     if (uniqueRooms.length > 0 && !selectedRoom) {
@@ -252,23 +294,45 @@ export default function SupportScreen() {
           <div className="bg-white rounded-lg p-4">
             <h2 className="font-semibold mb-4">Chat Sessions</h2>
             <div className="space-y-2">
-              {chatSessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => setSelectedRoom(session.chat_room_id)}
-                  className={`w-full text-left p-3 rounded border ${
-                    selectedRoom === session.chat_room_id ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="items-center justify-between mb-1">
-                    {getStatusBadge(session.status)}
-                    <span className="text-sm font-medium truncate">{session.chat_room_id}</span>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(session.updated_at).toLocaleString()}
-                  </div>
-                </button>
-              ))}
+              {chatSessions.map((session) => {
+                const hasUnread = unreadSessions.has(session.chat_room_id)
+                const isSelected = selectedRoom === session.chat_room_id
+                
+                return (
+                  <button
+                    key={session.id}
+                    onClick={() => {
+                      setSelectedRoom(session.chat_room_id)
+                      // Mark as read when selected
+                      setUnreadSessions(prev => {
+                        const newSet = new Set(prev)
+                        newSet.delete(session.chat_room_id)
+                        return newSet
+                      })
+                    }}
+                    className={`w-full text-left p-3 rounded border ${
+                      isSelected 
+                        ? 'bg-blue-50 border-blue-200' 
+                        : hasUnread 
+                          ? 'bg-pink-500 border-pink-200 hover:bg-pink-100' 
+                          : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(session.status)}
+                        {hasUnread && (
+                          <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium truncate">{session.chat_room_id}</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(session.updated_at).toLocaleString()}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 

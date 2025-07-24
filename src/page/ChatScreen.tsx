@@ -9,6 +9,7 @@ import { CardContent, CardHeader } from "@/components/ui/card"
 import { Send, Users, Circle, Minimize2} from "lucide-react"
 import { supabase, type Database } from "@/lib/supabase"
 import { useMobile } from "@/hooks/use-mobile"
+import { ChatStorage } from "@/lib/chat-storage"
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Supporter = Database['public']['Tables']['supporters']['Row']
@@ -20,8 +21,31 @@ export default function ChatScreen() {
   const [isTyping, setIsTyping] = useState(false)
   console.log(setIsTyping)
   const [isMinimized, setIsMinimized] = useState(false)
-  const [userId] = useState(() => `user-${Math.random().toString(36).substr(2, 9)}`)
-  const [chatRoomId] = useState(() => `room-${Date.now()}`)
+  
+  // Get or create persistent user session
+  const [userId] = useState(() => {
+    const existingSession = ChatStorage.getCurrentSession()
+    
+    if (existingSession && !ChatStorage.isSessionExpired()) {
+      return existingSession.userId
+    }
+    
+    // Create new session
+    const newUserId = `user-${Math.random().toString(36).substr(2, 9)}`
+    const newRoomId = `room-${Date.now()}`
+    ChatStorage.saveSession(newUserId, newRoomId)
+    return newUserId
+  })
+  
+  const [chatRoomId] = useState(() => {
+    const existingSession = ChatStorage.getCurrentSession()
+    
+    if (existingSession && !ChatStorage.isSessionExpired()) {
+      return existingSession.chatRoomId
+    }
+    
+    return `room-${Date.now()}`
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const isMobile = useMobile()
   const scrollToBottom = () => {
@@ -140,6 +164,7 @@ export default function ChatScreen() {
       console.error('Error sending message:', error)
     } else {
       setNewMessage("")
+      ChatStorage.updateActivity()
     }
   }
 

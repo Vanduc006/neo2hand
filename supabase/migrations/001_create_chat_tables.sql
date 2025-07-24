@@ -10,7 +10,7 @@ CREATE TABLE supporters (
 -- Create messages table
 CREATE TABLE messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  content TEXT NOT NULL,
+  content TEXT,
   sender_type TEXT CHECK (sender_type IN ('user', 'support')) NOT NULL,
   sender_id TEXT NOT NULL,
   supporter_name TEXT,

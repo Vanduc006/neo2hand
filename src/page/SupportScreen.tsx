@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Send, Tag, User, ShoppingCart, HelpCircle, CheckCircle, X, LogOut, Clock } from "lucide-react"
+import { Send, Tag, User, ShoppingCart, HelpCircle, CheckCircle, X, LogOut, Clock, File } from "lucide-react"
 import { supabase, type Database } from "@/lib/supabase"
 import { supporterStorage } from "@/lib/supporter-storage"
 import { useSupporterStatus } from "@/hooks/use-supporter-status"
 import SupporterLoginScreen from "./SupporterLoginScreen"
+import FileUpload, { type UploadedFile } from "@/components/FileUpload"
 
 type Message = Database['public']['Tables']['messages']['Row']
 type ChatSession = Database['public']['Tables']['chat_sessions']['Row']
@@ -37,6 +38,8 @@ export default function SupportScreen() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [unreadSessions, setUnreadSessions] = useState<Set<string>>(new Set())
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, string>>({})
+  const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([])
+  const fileUploadRef = useRef<any>(null)
   console.log(lastMessageTimes)
   // Use supporter status hook
   useSupporterStatus(currentSupporter)
@@ -296,23 +299,35 @@ export default function SupportScreen() {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedRoom) return
+    if (!newMessage.trim() && attachedFiles.length === 0) return
 
-    const messageData = {
-      content: newMessage.trim(),
-      sender_type: 'support' as const,
-      sender_id: currentSupporter.id,
-      supporter_name: currentSupporter.name,
-      supporter_avatar: currentSupporter.avatar,
-      chat_room_id: selectedRoom,
-    }
+    try {
+      const messageData = {
+        content: newMessage.trim() || null,
+        sender_type: 'support' as const,
+        sender_id: currentSupporter.id,
+        supporter_name: currentSupporter.name,
+        supporter_avatar: 'https://mrqpfnwmldgthasfzqdc.supabase.co/storage/v1/object/public/product-images//TkXKNk62.jpeg',
+        chat_room_id: selectedRoom,
+        files: attachedFiles.length > 0 ? JSON.stringify(attachedFiles) : null,
+      }
 
-    const { error } = await supabase
-      .from('messages')
-      .insert(messageData)
+      const { error } = await supabase
+        .from('messages')
+        .insert(messageData)
 
-    if (!error) {
-      setNewMessage("")
+      if (error) {
+        console.error('Error sending message:', error)
+      } else {
+        setNewMessage("")
+        setAttachedFiles([])
+        // Clear files in FileUpload component
+        if (fileUploadRef.current) {
+          fileUploadRef.current.clearFiles()
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleSendMessage:', error)
     }
   }
 
@@ -352,6 +367,10 @@ export default function SupportScreen() {
         {config.label}
       </Badge>
     )
+  }
+
+  const handleFilesSelected = (files: UploadedFile[]) => {
+    setAttachedFiles(files)
   }
 
   return (
@@ -452,6 +471,9 @@ export default function SupportScreen() {
                     <div key={message.id} className={`flex ${message.sender_type === "support" ? "justify-end" : "justify-start"}`}>
                       <div className={`flex space-x-2 max-w-[80%] ${message.sender_type === "support" ? "flex-row-reverse space-x-reverse" : ""}`}>
                         <Avatar className="h-8 w-8 mt-1">
+                          {message.sender_type !== "user" && (
+                            <AvatarImage src={message.supporter_avatar} alt={message.supporter_name || "Support"} />
+                          )}
                           <AvatarFallback>
                             {message.sender_type === "user" ? "U" : "S"}
                           </AvatarFallback>
@@ -460,13 +482,56 @@ export default function SupportScreen() {
                           <div className="text-xs text-gray-500 mb-1">
                             {message.sender_type === "user" ? "Customer" : message.supporter_name}
                           </div>
-                          <div className={`rounded-lg p-3 ${
-                            message.sender_type === "support" 
-                              ? "bg-blue-600 text-white" 
-                              : "bg-gray-100 text-gray-900"
-                          }`}>
-                            {message.content}
-                          </div>
+                          
+                          {/* Message Content */}
+                          {message.content && (
+                            <div className={`rounded-lg p-3 ${
+                              message.sender_type === "support" 
+                                ? "bg-blue-600 text-white" 
+                                : "bg-gray-100 text-gray-900"
+                            }`}>
+                              {message.content}
+                            </div>
+                          )}
+                          
+                          {/* Files */}
+                          {message.files && (
+                            <div className="space-y-2 mt-2">
+                              {(typeof message.files === 'string' ? JSON.parse(message.files) : message.files).map((file: UploadedFile, index: number) => (
+                                <div key={index}>
+                                  {file.type.startsWith('image/') ? (
+                                    <img 
+                                      src={file.url} 
+                                      alt={file.name}
+                                      className="max-w-48 rounded-lg cursor-pointer"
+                                      onClick={() => window.open(file.url, '_blank')}
+                                    />
+                                  ) : file.type.startsWith('video/') ? (
+                                    <video 
+                                      src={file.url} 
+                                      controls
+                                      className="max-w-48 rounded-lg"
+                                    />
+                                  ) : (
+                                    <a 
+                                      href={file.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className={`inline-flex items-center gap-2 p-2 rounded border ${
+                                        message.sender_type === "support" 
+                                          ? "bg-blue-500 text-white border-blue-400" 
+                                          : "bg-white border-gray-300"
+                                      }`}
+                                    >
+                                      <File className="h-4 w-4" />
+                                      <span className="text-sm">{file.name}</span>
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
                           <div className="text-xs text-gray-400 mt-1">
                             {new Date(message.created_at).toLocaleTimeString()}
                           </div>
@@ -478,7 +543,14 @@ export default function SupportScreen() {
                 </div>
 
                 <div className="p-4 border-t">
-                  <div className="flex space-x-2">
+                  <FileUpload 
+                    ref={fileUploadRef}
+                    onFilesSelected={handleFilesSelected}
+                    maxFiles={999} // No limit for supporters
+                    maxFileSize={999} // No size limit for supporters
+                  />
+                  
+                  <div className="flex space-x-2 mt-2">
                     <Input
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
@@ -486,7 +558,10 @@ export default function SupportScreen() {
                       onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                       className="flex-1"
                     />
-                    <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                    <Button 
+                      onClick={handleSendMessage} 
+                      disabled={!newMessage.trim() && attachedFiles.length === 0}
+                    >
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>

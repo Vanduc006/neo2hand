@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CardContent, CardHeader } from "@/components/ui/card"
-import { Send, Users, Circle, Minimize2} from "lucide-react"
+import { Send, Users, Circle, Minimize2, File } from "lucide-react"
 import { supabase, type Database } from "@/lib/supabase"
 import { useMobile } from "@/hooks/use-mobile"
 import { ChatStorage } from "@/lib/chat-storage"
+import FileUpload, { type UploadedFile, type FileUploadRef } from "@/components/FileUpload"
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Supporter = Database['public']['Tables']['supporters']['Row']
@@ -21,6 +22,8 @@ export default function ChatScreen() {
   const [isTyping, setIsTyping] = useState(false)
   console.log(setIsTyping)
   const [isMinimized, setIsMinimized] = useState(true)
+  const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([])
+  const fileUploadRef = useRef<FileUploadRef>(null)
   
   // Get or create persistent user session
   const [userId] = useState(() => {
@@ -147,25 +150,39 @@ export default function ChatScreen() {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim()) return
+    if (!newMessage.trim() && attachedFiles.length === 0) return
 
-    const messageData = {
-      content: newMessage.trim(),
-      sender_type: 'user' as const,
-      sender_id: userId,
-      chat_room_id: chatRoomId,
+    try {
+      const messageData = {
+        content: newMessage.trim() || null,
+        sender_type: 'user' as const,
+        sender_id: userId,
+        chat_room_id: chatRoomId,
+        files: attachedFiles.length > 0 ? JSON.stringify(attachedFiles) : null,
+      }
+
+      const { error } = await supabase
+        .from('messages')
+        .insert(messageData)
+
+      if (error) {
+        console.error('Error sending message:', error)
+      } else {
+        setNewMessage("")
+        setAttachedFiles([])
+        // Clear files in FileUpload component
+        if (fileUploadRef.current) {
+          fileUploadRef.current.clearFiles()
+        }
+        ChatStorage.updateActivity()
+      }
+    } catch (error) {
+      console.error('Error in handleSendMessage:', error)
     }
+  }
 
-    const { error } = await supabase
-      .from('messages')
-      .insert(messageData)
-
-    if (error) {
-      console.error('Error sending message:', error)
-    } else {
-      setNewMessage("")
-      ChatStorage.updateActivity()
-    }
+  const handleFilesSelected = (files: UploadedFile[]) => {
+    setAttachedFiles(files)
   }
 
   const onlineSupporers = supporters.filter((s) => s.status === "online")
@@ -211,7 +228,13 @@ export default function ChatScreen() {
       <CardHeader className="bg-blue-600 text-white md:rounded-t-lg p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Users className="h-5 w-5" />
+            {/* <Users className="h-5 w-5" /> */}
+            <Avatar className="h-8 w-8">
+              <AvatarImage src="https://mrqpfnwmldgthasfzqdc.supabase.co/storage/v1/object/public/product-images//TkXKNk62.jpeg" alt="Support" />
+              <AvatarFallback>
+                SC
+              </AvatarFallback>
+            </Avatar>
             <span className="font-semibold">Support Chat</span>
           </div>
           <div className="flex items-center space-x-2">
@@ -282,19 +305,12 @@ export default function ChatScreen() {
               >
                 {message.sender_type === "support" && (
                   <Avatar className="h-8 w-8 mt-1">
-                    <AvatarImage src={message.supporter_avatar || "/placeholder.svg"} alt={message.supporter_name || "Support"} />
+                    <AvatarImage src={message.supporter_avatar} alt={message.supporter_name || "Support"} />
                     <AvatarFallback>
                       {message.supporter_name ? 
                         message.supporter_name.split(" ").map(n => n[0]).join("") : 
                         "SC"
                       }
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                {message.sender_type === "user" && (
-                  <Avatar className="h-8 w-8 mt-1">
-                    <AvatarFallback className="bg-blue-600 text-white">
-                      You
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -305,15 +321,58 @@ export default function ChatScreen() {
                   {message.sender_type === "user" && (
                     <div className="text-xs text-gray-500 mb-1 text-right">You</div>
                   )}
-                  <div
-                    className={`rounded-lg p-3 ${
-                      message.sender_type === "user" 
-                        ? "bg-blue-600 text-white" 
-                        : "bg-gray-100 text-gray-900"
-                    }`}
-                  >
-                    {message.content}
-                  </div>
+                  
+                  {/* Message Content */}
+                  {message.content && (
+                    <div
+                      className={`rounded-lg p-3 ${
+                        message.sender_type === "user" 
+                          ? "bg-blue-600 text-white" 
+                          : "bg-gray-100 text-gray-900"
+                      }`}
+                    >
+                      {message.content}
+                    </div>
+                  )}
+                  
+                  {/* Files */}
+                  {message.files && (
+                    <div className="space-y-2 mt-2">
+                      {(typeof message.files === 'string' ? JSON.parse(message.files) : message.files).map((file: UploadedFile, index: number) => (
+                        <div key={index}>
+                          {file.type.startsWith('image/') ? (
+                            <img 
+                              src={file.url} 
+                              alt={file.name}
+                              className="max-w-48 rounded-lg cursor-pointer"
+                              onClick={() => window.open(file.url, '_blank')}
+                            />
+                          ) : file.type.startsWith('video/') ? (
+                            <video 
+                              src={file.url} 
+                              controls
+                              className="max-w-48 rounded-lg"
+                            />
+                          ) : (
+                            <a 
+                              href={file.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className={`inline-flex items-center gap-2 p-2 rounded border ${
+                                message.sender_type === "user" 
+                                  ? "bg-blue-500 text-white border-blue-400" 
+                                  : "bg-white border-gray-300"
+                              }`}
+                            >
+                              <File className="h-4 w-4" />
+                              <span className="text-sm">{file.name}</span>
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
                   <div className={`text-xs text-gray-400 mt-1 ${message.sender_type === "user" ? "text-right" : ""}`}>
                     {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </div>
@@ -355,7 +414,14 @@ export default function ChatScreen() {
 
       {/* Input */}
       <div className={`border-t ${isMobile ? "p-3" : "p-4"}`}>
-        <div className="flex space-x-2">
+        <FileUpload 
+          ref={fileUploadRef}
+          onFilesSelected={handleFilesSelected}
+          maxFiles={5}
+          maxFileSize={10}
+        />
+        
+        <div className="flex space-x-2 mt-2">
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
@@ -365,12 +431,13 @@ export default function ChatScreen() {
           />
           <Button 
             onClick={handleSendMessage} 
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() && attachedFiles.length === 0}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
           </Button>
         </div>
+        
         <div className="text-xs text-gray-500 mt-2 text-center">
           {onlineSupporers.length > 0 ? "Typically replies in a few minutes" : "No supporters online"}
         </div>

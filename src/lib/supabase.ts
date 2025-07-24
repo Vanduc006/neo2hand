@@ -59,23 +59,25 @@ export type Database = {
       messages: {
         Row: {
           id: string
-          content: string
+          content: string | null
           sender_type: 'user' | 'support'
           sender_id: string
           supporter_name?: string
           supporter_avatar?: string
           created_at: string
           chat_room_id: string
+          files?: any[]
         }
         Insert: {
           id?: string
-          content: string
+          content?: string | null
           sender_type: 'user' | 'support'
           sender_id: string
           supporter_name?: string
           supporter_avatar?: string
           created_at?: string
           chat_room_id: string
+          files?: any[]
         }
       }
       supporters: {

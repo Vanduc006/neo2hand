@@ -33,7 +33,7 @@ export default function SupportScreen() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [unreadSessions, setUnreadSessions] = useState<Set<string>>(new Set())
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, string>>({})
-
+  console.log(lastMessageTimes)
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }

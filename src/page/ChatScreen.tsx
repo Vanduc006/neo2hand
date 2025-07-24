@@ -21,7 +21,7 @@ export default function ChatScreen() {
   const [newMessage, setNewMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   console.log(setIsTyping)
-  const [isMinimized, setIsMinimized] = useState(true)
+  const [isMinimized, setIsMinimized] = useState(false)
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([])
   const fileUploadRef = useRef<FileUploadRef>(null)
   

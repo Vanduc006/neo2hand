@@ -1,0 +1,44 @@
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+export type Database = {
+  public: {
+    Tables: {
+      messages: {
+        Row: {
+          id: string
+          content: string
+          sender_type: 'user' | 'support'
+          sender_id: string
+          supporter_name?: string
+          supporter_avatar?: string
+          created_at: string
+          chat_room_id: string
+        }
+        Insert: {
+          id?: string
+          content: string
+          sender_type: 'user' | 'support'
+          sender_id: string
+          supporter_name?: string
+          supporter_avatar?: string
+          created_at?: string
+          chat_room_id: string
+        }
+      }
+      supporters: {
+        Row: {
+          id: string
+          name: string
+          avatar: string
+          status: 'online' | 'busy' | 'away'
+          created_at: string
+        }
+      }
+    }
+  }
+}

@@ -25,7 +25,7 @@ export interface FileUploadRef {
 const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(({ 
   onFilesSelected, 
   maxFiles = 5, 
-  maxFileSize = 10,
+  maxFileSize = 50,
   disabled = false,
   onClear
 }, ref) => {
@@ -143,17 +143,11 @@ const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(({
           <Paperclip className="h-4 w-4" />
         </Button>
 
-        {/* {selectedFiles.length > 0 && (
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleUpload}
-            disabled={uploading}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {uploading ? 'Uploading...' : `Send ${selectedFiles.length} file(s)`}
-          </Button>
-        )} */}
+        {uploading && (
+          <span className="text-sm text-blue-600 animate-pulse">
+            Uploading files...
+          </span>
+        )}
       </div>
 
       <input

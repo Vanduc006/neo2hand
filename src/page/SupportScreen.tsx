@@ -40,6 +40,7 @@ export default function SupportScreen() {
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, string>>({})
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([])
   const fileUploadRef = useRef<any>(null)
+  const [isSending, setIsSending] = useState(false)
   console.log(lastMessageTimes)
   // Use supporter status hook
   useSupporterStatus(currentSupporter)
@@ -300,8 +301,10 @@ export default function SupportScreen() {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() && attachedFiles.length === 0) return
+    if (isSending) return // Prevent double sending
 
     try {
+      setIsSending(true)
       const messageData = {
         content: newMessage.trim() || null,
         sender_type: 'support' as const,
@@ -321,13 +324,14 @@ export default function SupportScreen() {
       } else {
         setNewMessage("")
         setAttachedFiles([])
-        // Clear files in FileUpload component
         if (fileUploadRef.current) {
           fileUploadRef.current.clearFiles()
         }
       }
     } catch (error) {
       console.error('Error in handleSendMessage:', error)
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -555,12 +559,17 @@ export default function SupportScreen() {
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder="Type your response..."
-                      onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault()
+                          handleSendMessage()
+                        }
+                      }}
                       className="flex-1"
                     />
                     <Button 
                       onClick={handleSendMessage} 
-                      disabled={!newMessage.trim() && attachedFiles.length === 0}
+                      disabled={(!newMessage.trim() && attachedFiles.length === 0) || isSending}
                     >
                       <Send className="h-4 w-4" />
                     </Button>

@@ -38,6 +38,7 @@ export default function SupportScreen() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [unreadSessions, setUnreadSessions] = useState<Set<string>>(new Set())
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, string>>({})
+  const [sessionsWithNewMessages, setSessionsWithNewMessages] = useState<Set<string>>(new Set())
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([])
   const fileUploadRef = useRef<any>(null)
   const [isSending, setIsSending] = useState(false)
@@ -282,6 +283,11 @@ export default function SupportScreen() {
           const newMessage = payload.new as Message
           loadChatSessions()
           
+          // Mark session as having new message if it's from a customer
+          if (newMessage.sender_type === 'user') {
+            setSessionsWithNewMessages(prev => new Set(prev).add(newMessage.chat_room_id))
+          }
+          
           if (newMessage.chat_room_id === selectedRoom) {
             setMessages(prev => {
               if (prev.find(msg => msg.id === newMessage.id)) {
@@ -301,7 +307,7 @@ export default function SupportScreen() {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() && attachedFiles.length === 0) return
-    if (isSending) return // Prevent double sending
+    if (isSending) return
 
     try {
       setIsSending(true)
@@ -327,6 +333,13 @@ export default function SupportScreen() {
         if (fileUploadRef.current) {
           fileUploadRef.current.clearFiles()
         }
+        
+        // Remove "new message" badge when supporter responds
+        setSessionsWithNewMessages(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(selectedRoom)
+          return newSet
+        })
       }
     } catch (error) {
       console.error('Error in handleSendMessage:', error)
@@ -419,6 +432,7 @@ export default function SupportScreen() {
             <div className="space-y-2">
               {chatSessions.map((session) => {
                 const hasUnread = unreadSessions.has(session.chat_room_id)
+                const hasNewMessage = sessionsWithNewMessages.has(session.chat_room_id)
                 const isSelected = selectedRoom === session.chat_room_id
                 
                 return (
@@ -426,7 +440,6 @@ export default function SupportScreen() {
                     key={session.id}
                     onClick={() => {
                       setSelectedRoom(session.chat_room_id)
-                      // Mark as read when selected
                       setUnreadSessions(prev => {
                         const newSet = new Set(prev)
                         newSet.delete(session.chat_room_id)
@@ -442,8 +455,14 @@ export default function SupportScreen() {
                     }`}
                   >
                     <div className="items-center justify-between mb-1">
+                        {hasNewMessage && (
+                          <Badge className="bg-red-500 text-white text-xs px-2 py-1 my-1">
+                            New Message
+                          </Badge>
+                        )}
                       <div className="flex items-center gap-2">
                         {getStatusBadge(session.status)}
+
                         {hasUnread && (
                           <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
                         )}

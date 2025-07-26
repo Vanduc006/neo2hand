@@ -418,7 +418,7 @@ export default function ChatScreen() {
           ref={fileUploadRef}
           onFilesSelected={handleFilesSelected}
           maxFiles={5}
-          maxFileSize={5show0}
+          maxFileSize={50}
         />
         
         <div className="flex space-x-2 mt-2">

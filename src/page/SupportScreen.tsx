@@ -17,12 +17,12 @@ type ChatSession = Database['public']['Tables']['chat_sessions']['Row']
 type Supporter = Database['public']['Tables']['supporters']['Row']
 
 const statusConfig = {
-  'active': { label: 'Dang hoat dong', color: 'bg-green-500', icon: User },
-  'in-order': { label: 'Dang mua', color: 'bg-blue-500', icon: ShoppingCart },
-  'not-buy': { label: 'Khong mua', color: 'bg-red-500', icon: X },
-  'wonder': { label: 'Phan van', color: 'bg-yellow-500', icon: HelpCircle },
-  'resolved': { label: 'Da xu li xong', color: 'bg-purple-500', icon: CheckCircle },
-  'closed': { label: 'Hoan thanh', color: 'bg-gray-500', icon: X }
+  'active': { label: 'San sang', color: 'bg-indigo-500', icon: User },
+  'in-order': { label: 'Da gui tong hop', color: 'bg-red-500', icon: ShoppingCart },
+  'not-buy': { label: 'Khach da dat don', color: 'bg-purple-500', icon: X },
+  'wonder': { label: 'Chot tren live', color: 'bg-yellow-500', icon: HelpCircle },
+  'resolved': { label: 'Hoan thanh', color: 'bg-green-500', icon: CheckCircle },
+  'closed': { label: 'Da gui di', color: 'bg-blue-500', icon: X }
 }
 
 export default function SupportScreen() {
@@ -377,10 +377,10 @@ export default function SupportScreen() {
 
   const getStatusBadge = (status: ChatSession['status']) => {
     const config = statusConfig[status]
-    const Icon = config.icon
+    // const Icon = config.icon
     return (
       <Badge className={`${config.color} text-white`}>
-        <Icon className="h-3 w-3 mr-1" />
+        {/* <Icon className="h-3 w-3 mr-1" /> */}
         {config.label}
       </Badge>
     )
@@ -615,7 +615,7 @@ export default function SupportScreen() {
                   <label className="text-sm font-medium text-gray-700 mb-2 block">Status</label>
                   <div className="space-y-2">
                     {Object.entries(statusConfig).map(([status, config]) => {
-                      const Icon = config.icon
+                      // const Icon = config.icon
                       return (
                         <button
                           key={status}
@@ -626,7 +626,7 @@ export default function SupportScreen() {
                               : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                           }`}
                         >
-                          <Icon className="h-4 w-4 mr-2" />
+                          {/* <Icon className="h-4 w-4 mr-2" /> */}
                           {config.label}
                         </button>
                       )

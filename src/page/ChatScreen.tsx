@@ -11,6 +11,7 @@ import { supabase, type Database } from "@/lib/supabase"
 import { useMobile } from "@/hooks/use-mobile"
 import { ChatStorage } from "@/lib/chat-storage"
 import FileUpload, { type UploadedFile, type FileUploadRef } from "@/components/FileUpload"
+import { convertUrlsToLinks } from "@/lib/utils"
 
 type Message = Database['public']['Tables']['messages']['Row']
 type Supporter = Database['public']['Tables']['supporters']['Row']
@@ -150,11 +151,11 @@ export default function ChatScreen() {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() && attachedFiles.length === 0) return
+    if (!newMessage && attachedFiles.length === 0) return
 
     try {
       const messageData = {
-        content: newMessage.trim() || null,
+        content: newMessage || null,
         sender_type: 'user' as const,
         sender_id: userId,
         chat_room_id: chatRoomId,
@@ -179,6 +180,13 @@ export default function ChatScreen() {
     } catch (error) {
       console.error('Error in handleSendMessage:', error)
     }
+  }
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewMessage(e.target.value)
+    // Auto-resize textarea
+    e.target.style.height = 'auto'
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
   }
 
   const handleFilesSelected = (files: UploadedFile[]) => {
@@ -330,9 +338,9 @@ export default function ChatScreen() {
                           ? "bg-blue-600 text-white" 
                           : "bg-gray-100 text-gray-900"
                       }`}
-                    >
-                      {message.content}
-                    </div>
+                      style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                      dangerouslySetInnerHTML={{ __html: convertUrlsToLinks(message.content) }}
+                    />
                   )}
                   
                   {/* Files */}
@@ -422,16 +430,26 @@ export default function ChatScreen() {
         />
         
         <div className="flex space-x-2 mt-2">
-          <Input
+          <textarea
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleTextareaChange}
             placeholder="Type your message..."
-            onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-            className="flex-1"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault()
+                handleSendMessage()
+              }
+            }}
+            className="flex-1 p-2 border border-gray-300 rounded-md resize-none min-h-[40px] max-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ 
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontFamily: 'inherit'
+            }}
           />
           <Button 
             onClick={handleSendMessage} 
-            disabled={!newMessage.trim() && attachedFiles.length === 0}
+            disabled={!newMessage && attachedFiles.length === 0}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
           >
             <Send className="h-4 w-4" />

@@ -11,6 +11,7 @@ import { supporterStorage } from "@/lib/supporter-storage"
 import { useSupporterStatus } from "@/hooks/use-supporter-status"
 import SupporterLoginScreen from "./SupporterLoginScreen"
 import FileUpload, { type UploadedFile } from "@/components/FileUpload"
+import { convertUrlsToLinks } from "@/lib/utils"
 
 type Message = Database['public']['Tables']['messages']['Row']
 type ChatSession = Database['public']['Tables']['chat_sessions']['Row']
@@ -306,13 +307,13 @@ export default function SupportScreen() {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() && attachedFiles.length === 0) return
+    if (!newMessage && attachedFiles.length === 0) return
     if (isSending) return
 
     try {
       setIsSending(true)
       const messageData = {
-        content: newMessage.trim() || null,
+        content: newMessage || null,
         sender_type: 'support' as const,
         sender_id: currentSupporter.id,
         supporter_name: currentSupporter.name,
@@ -346,6 +347,13 @@ export default function SupportScreen() {
     } finally {
       setIsSending(false)
     }
+  }
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewMessage(e.target.value)
+    // Auto-resize textarea
+    e.target.style.height = 'auto'
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
   }
 
   const updateSessionStatus = async (status: ChatSession['status']) => {
@@ -512,9 +520,10 @@ export default function SupportScreen() {
                               message.sender_type === "support" 
                                 ? "bg-blue-600 text-white" 
                                 : "bg-gray-100 text-gray-900"
-                            }`}>
-                              {message.content}
-                            </div>
+                            }`}
+                            style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                            dangerouslySetInnerHTML={{ __html: convertUrlsToLinks(message.content) }}
+                            />
                           )}
                           
                           {/* Files */}
@@ -574,9 +583,9 @@ export default function SupportScreen() {
                   />
                   
                   <div className="flex space-x-2 mt-2">
-                    <Input
+                    <textarea
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={handleTextareaChange}
                       placeholder="Type your response..."
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
@@ -584,11 +593,16 @@ export default function SupportScreen() {
                           handleSendMessage()
                         }
                       }}
-                      className="flex-1"
+                      className="flex-1 p-2 border border-gray-300 rounded-md resize-none min-h-[40px] max-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ 
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        fontFamily: 'inherit'
+                      }}
                     />
                     <Button 
                       onClick={handleSendMessage} 
-                      disabled={(!newMessage.trim() && attachedFiles.length === 0) || isSending}
+                      disabled={(!newMessage && attachedFiles.length === 0) || isSending}
                     >
                       <Send className="h-4 w-4" />
                     </Button>

@@ -4,7 +4,7 @@ import CategoriesPage from "@/components/CategoriesPage";
 import ProductsPage from "@/components/ProductsPage";
 
 const ProductManagement = () => {
-  const [currentTab, setCurrentTab] = useState<string>("Categories");
+  const [currentTab, setCurrentTab] = useState<string>("Supports");
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">

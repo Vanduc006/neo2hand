@@ -399,21 +399,21 @@ export default function SupportScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
+    <div className="min-h-screen bg-[#FEFCFD] p-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Support Dashboard</h1>
+          <h1 className="text-2xl font-bold text-[#3B3355]">Support Dashboard</h1>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <Avatar className="h-8 w-8">
-                <AvatarFallback>
+                <AvatarFallback className="bg-[#5D5D81] text-white">
                   {currentSupporter.name.split(" ").map(n => n[0]).join("")}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
-                <span className="font-medium">{currentSupporter.name}</span>
+                <span className="font-medium text-[#3B3355]">{currentSupporter.name}</span>
                 {lastLoginTime && (
-                  <div className="flex items-center text-xs text-gray-500">
+                  <div className="flex items-center text-xs text-[#5D5D81]">
                     <Clock className="h-3 w-3 mr-1" />
                     Logged in: {new Date(lastLoginTime).toLocaleTimeString()}
                   </div>
@@ -422,11 +422,11 @@ export default function SupportScreen() {
             </div>
             <Badge className={`${
               currentSupporter.status === 'online' ? 'bg-green-500' :
-              currentSupporter.status === 'busy' ? 'bg-yellow-500' : 'bg-gray-500'
+              currentSupporter.status === 'busy' ? 'bg-yellow-500' : 'bg-[#5D5D81]'
             } text-white`}>
               {currentSupporter.status}
             </Badge>
-            <Button variant="outline" onClick={handleLogout}>
+            <Button variant="outline" onClick={handleLogout} className="border-[#5D5D81] text-[#5D5D81] hover:bg-[#5D5D81] hover:text-white">
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
@@ -435,8 +435,8 @@ export default function SupportScreen() {
         
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Chat Sessions */}
-          <div className="bg-white rounded-lg p-4">
-            <h2 className="font-semibold mb-4">Chat Sessions</h2>
+          <div className="bg-white rounded-lg p-4 border border-[#BFCDE0]">
+            <h2 className="font-semibold mb-4 text-[#3B3355]">Chat Sessions</h2>
             <div className="space-y-2">
               {chatSessions.map((session) => {
                 const hasUnread = unreadSessions.has(session.chat_room_id)
@@ -456,10 +456,10 @@ export default function SupportScreen() {
                     }}
                     className={`w-full text-left p-3 rounded border ${
                       isSelected 
-                        ? 'bg-blue-50 border-blue-200' 
+                        ? 'bg-[#BFCDE0] border-[#5D5D81]' 
                         : hasUnread 
                           ? 'bg-pink-500 border-pink-200 hover:bg-pink-100' 
-                          : 'hover:bg-gray-50'
+                          : 'hover:bg-[#BFCDE0] border-[#BFCDE0]'
                     }`}
                   >
                     <div className="items-center justify-between mb-1">
@@ -475,9 +475,9 @@ export default function SupportScreen() {
                           <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
                         )}
                       </div>
-                      <span className="text-sm font-medium truncate">{session.chat_room_id}</span>
+                      <span className="text-sm font-medium truncate text-[#3B3355]">{session.chat_room_id}</span>
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-[#5D5D81]">
                       {new Date(session.updated_at).toLocaleString()}
                     </div>
                   </button>
@@ -487,12 +487,12 @@ export default function SupportScreen() {
           </div>
 
           {/* Chat Interface */}
-          <div className="lg:col-span-3 bg-white rounded-lg flex flex-col h-[600px]">
+          <div className="lg:col-span-3 bg-white rounded-lg flex flex-col h-[600px] border border-[#BFCDE0]">
             {selectedRoom ? (
               <>
-                <div className="p-4 border-b">
+                <div className="p-4 border-b border-[#BFCDE0] bg-[#FEFCFD]">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Chat: {selectedRoom}</h3>
+                    <h3 className="font-semibold text-[#3B3355]">Chat: {selectedRoom}</h3>
                     {selectedSession && getStatusBadge(selectedSession.status)}
                   </div>
                 </div>
@@ -505,12 +505,12 @@ export default function SupportScreen() {
                           {message.sender_type !== "user" && (
                             <AvatarImage src={message.supporter_avatar} alt={message.supporter_name || "Support"} />
                           )}
-                          <AvatarFallback>
+                          <AvatarFallback className="bg-[#5D5D81] text-white">
                             {message.sender_type === "user" ? "U" : "S"}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">
+                          <div className="text-xs text-[#5D5D81] mb-1">
                             {message.sender_type === "user" ? "Customer" : message.supporter_name}
                           </div>
                           
@@ -518,8 +518,8 @@ export default function SupportScreen() {
                           {message.content && (
                             <div className={`rounded-lg p-3 ${
                               message.sender_type === "support" 
-                                ? "bg-blue-600 text-white" 
-                                : "bg-gray-100 text-gray-900"
+                                ? "bg-[#5D5D81] text-black" 
+                                : "bg-[#BFCDE0] text-black"
                             }`}
                             style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                             dangerouslySetInnerHTML={{ __html: convertUrlsToLinks(message.content) }}
@@ -551,8 +551,8 @@ export default function SupportScreen() {
                                       rel="noopener noreferrer"
                                       className={`inline-flex items-center gap-2 p-2 rounded border ${
                                         message.sender_type === "support" 
-                                          ? "bg-blue-500 text-white border-blue-400" 
-                                          : "bg-white border-gray-300"
+                                          ? "bg-[#3B3355] text-white border-[#3B3355]" 
+                                          : "bg-white border-[#5D5D81] text-[#5D5D81]"
                                       }`}
                                     >
                                       <File className="h-4 w-4" />
@@ -564,7 +564,7 @@ export default function SupportScreen() {
                             </div>
                           )}
                           
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-xs text-[#5D5D81] mt-1">
                             {new Date(message.created_at).toLocaleTimeString()}
                           </div>
                         </div>
@@ -574,7 +574,7 @@ export default function SupportScreen() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="p-4 border-t">
+                <div className="p-4 border-t border-[#BFCDE0] bg-[#FEFCFD]">
                   <FileUpload 
                     ref={fileUploadRef}
                     onFilesSelected={handleFilesSelected}
@@ -593,7 +593,7 @@ export default function SupportScreen() {
                           handleSendMessage()
                         }
                       }}
-                      className="flex-1 p-2 border border-gray-300 rounded-md resize-none min-h-[40px] max-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 p-2 border border-[#BFCDE0] rounded-md resize-none min-h-[40px] max-h-[120px] focus:outline-none focus:ring-2 focus:ring-[#5D5D81] bg-white"
                       style={{ 
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
@@ -603,6 +603,7 @@ export default function SupportScreen() {
                     <Button 
                       onClick={handleSendMessage} 
                       disabled={(!newMessage && attachedFiles.length === 0) || isSending}
+                      className="bg-[#5D5D81] hover:bg-[#3B3355] text-white"
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -610,15 +611,15 @@ export default function SupportScreen() {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
+              <div className="flex-1 flex items-center justify-center text-[#5D5D81]">
                 Select a chat session to start responding
               </div>
             )}
           </div>
 
           {/* Session Management */}
-          <div className="bg-white rounded-lg p-4">
-            <h2 className="font-semibold mb-4 flex items-center">
+          <div className="bg-white rounded-lg p-4 border border-[#BFCDE0]">
+            <h2 className="font-semibold mb-4 flex items-center text-[#3B3355]">
               <Tag className="h-4 w-4 mr-2" />
               Session Management
             </h2>
@@ -626,7 +627,7 @@ export default function SupportScreen() {
             {selectedSession ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Status</label>
+                  <label className="text-sm font-medium text-[#3B3355] mb-2 block">Status</label>
                   <div className="space-y-2">
                     {Object.entries(statusConfig).map(([status, config]) => {
                       // const Icon = config.icon
@@ -637,7 +638,7 @@ export default function SupportScreen() {
                           className={`w-full flex items-center p-2 rounded text-sm ${
                             selectedSession.status === status
                               ? `${config.color} text-white`
-                              : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                              : 'bg-[#BFCDE0] hover:bg-[#5D5D81] hover:text-white text-[#3B3355]'
                           }`}
                         >
                           {/* <Icon className="h-4 w-4 mr-2" /> */}
@@ -649,23 +650,23 @@ export default function SupportScreen() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Notes</label>
+                  <label className="text-sm font-medium text-[#3B3355] mb-2 block">Notes</label>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     onBlur={updateNotes}
                     placeholder="Add notes about this session..."
-                    className="w-full p-2 border rounded-md text-sm h-24 resize-none"
+                    className="w-full p-2 border border-[#BFCDE0] rounded-md text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-[#5D5D81]"
                   />
                 </div>
 
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-[#5D5D81]">
                   <div>Created: {new Date(selectedSession.created_at).toLocaleString()}</div>
                   <div>Updated: {new Date(selectedSession.updated_at).toLocaleString()}</div>
                 </div>
               </div>
             ) : (
-              <div className="text-gray-500 text-sm">
+              <div className="text-[#5D5D81] text-sm">
                 Select a session to manage its status and add notes
               </div>
             )}

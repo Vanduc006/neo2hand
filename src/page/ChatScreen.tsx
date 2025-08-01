@@ -233,7 +233,7 @@ export default function ChatScreen() {
       }`}
     >
       {/* Header */}
-      <CardHeader className="bg-blue-600 text-white md:rounded-t-lg p-4">
+      <CardHeader className="bg-[#3B3355] text-white md:rounded-t-lg p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             {/* <Users className="h-5 w-5" /> */}
@@ -250,7 +250,7 @@ export default function ChatScreen() {
               variant="ghost"
               size="sm"
               onClick={() => setIsMinimized(true)}
-              className="text-white hover:bg-blue-700 p-1"
+              className="text-white hover:bg-[#5D5D81] p-1"
             >
               <Minimize2 className="h-4 w-4" />
             </Button>
@@ -335,8 +335,8 @@ export default function ChatScreen() {
                     <div
                       className={`rounded-lg p-3 ${
                         message.sender_type === "user" 
-                          ? "bg-blue-600 text-white" 
-                          : "bg-gray-100 text-gray-900"
+                          ? "bg-[#5D5D81] text-black" 
+                          : "bg-[#BFCDE0] text-black"
                       }`}
                       style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                       dangerouslySetInnerHTML={{ __html: convertUrlsToLinks(message.content) }}
@@ -440,7 +440,7 @@ export default function ChatScreen() {
                 handleSendMessage()
               }
             }}
-            className="flex-1 p-2 border border-gray-300 rounded-md resize-none min-h-[40px] max-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 p-2 border border-[#BFCDE0] rounded-md resize-none min-h-[40px] max-h-[120px] focus:outline-none focus:ring-2 focus:ring-[#5D5D81] bg-white"
             style={{ 
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
@@ -450,7 +450,7 @@ export default function ChatScreen() {
           <Button 
             onClick={handleSendMessage} 
             disabled={!newMessage && attachedFiles.length === 0}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            className="bg-[#5D5D81] hover:bg-[#3B3355] disabled:opacity-50 text-white"
           >
             <Send className="h-4 w-4" />
           </Button>
